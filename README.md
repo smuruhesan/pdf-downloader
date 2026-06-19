@@ -16,36 +16,47 @@ Below is the architecture flow showing how the components interact.
 
 ```mermaid
 graph TD
-    subgraph Frontend Interface
-        UI[Streamlit Web App]
-        Grid[Interactive AgGrid Table]
-    end
+    %% Define Styles
+    classDef userAction fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef appProcess fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef botAction fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+    classDef dataSave fill:#fff3e0,stroke:#e65100,stroke-width:2px;
 
-    subgraph Data Layer
-        Excel[(sources.xlsx)]
-        State[Streamlit Session State]
-    end
-
-    subgraph Automation Engine
-        PW[Playwright Headless Browser]
-        DOM1[Shadow DOM Date Scraper]
-        DOM2[Print Automator & Widget Assassin]
-    end
-
-    UI <--> Grid
-    Grid <-->|Read / Write| Excel
-    Grid <-->|Store Selections| State
+    %% Nodes
+    1["1️⃣ Load Excel Data"]:::appProcess
+    2["2️⃣ User Selects Guides"]:::userAction
     
-    UI -->|Trigger Fetch Dates| PW
-    PW --> DOM1
-    DOM1 -->|Extract & Format| Excel
-    
-    UI -->|Trigger Download PDFs| PW
-    PW --> DOM2
-    DOM2 -->|Nuke Icons & Save PDF| Local[Local File System]
-    DOM2 -->|Update Status| Excel
+    %% Split Actions
+    3A["3A. Click 'Fetch Dates'"]:::userAction
+    3B["3B. Click 'Download PDFs'"]:::userAction
 
-```
+    %% Date Flow
+    4A["4. Bot Opens Hidden Browser"]:::botAction
+    5A["5. Scraper Pierces Shadow DOM"]:::botAction
+    
+    %% PDF Flow
+    4B["4. Bot Opens Hidden Browser"]:::botAction
+    5B["5. Bot Triggers 'Print All'"]:::botAction
+    6B["6. Widget Assassin Cleans Page"]:::botAction
+    7B["7. Binary PDF Generated"]:::botAction
+
+    %% Final Save
+    8["8️⃣ Save to Excel & Disk"]:::dataSave
+
+    %% Connections
+    1 --> 2
+    2 --> 3A
+    2 --> 3B
+    
+    3A --> 4A
+    4A --> 5A
+    5A --> 8
+    
+    3B --> 4B
+    4B --> 5B
+    5B --> 6B
+    6B --> 7B
+    7B --> 8
 
 ---
 
