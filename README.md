@@ -10,9 +10,9 @@ It is specifically designed to interact with the Palo Alto Networks documentatio
 
 ---
 
-## 2. System Architecture Diagram
+## 2. System Architecture & Step-by-Step Workflow
 
-Below is the architecture flow showing how the components interact.
+This diagram breaks down the exact sequence of events from the moment you open the app to the moment your PDF is saved.
 
 ```mermaid
 graph TD
@@ -23,41 +23,70 @@ graph TD
     classDef dataSave fill:#fff3e0,stroke:#e65100,stroke-width:2px;
 
     %% Nodes
-    1["1️⃣ Load Excel Data"]:::appProcess
-    2["2️⃣ User Selects Guides"]:::userAction
+    Step1["1️⃣ Load Excel Data"]:::appProcess
+    Step2["2️⃣ User Selects Guides"]:::userAction
     
     %% Split Actions
-    3A["3A. Click 'Fetch Dates'"]:::userAction
-    3B["3B. Click 'Download PDFs'"]:::userAction
+    Step3A["3A. Click 'Fetch Dates'"]:::userAction
+    Step3B["3B. Click 'Download PDFs'"]:::userAction
 
     %% Date Flow
-    4A["4. Bot Opens Hidden Browser"]:::botAction
-    5A["5. Scraper Pierces Shadow DOM"]:::botAction
+    Step4A["4. Bot Opens Hidden Browser"]:::botAction
+    Step5A["5. Scraper Pierces Shadow DOM"]:::botAction
     
     %% PDF Flow
-    4B["4. Bot Opens Hidden Browser"]:::botAction
-    5B["5. Bot Triggers 'Print All'"]:::botAction
-    6B["6. Widget Assassin Cleans Page"]:::botAction
-    7B["7. Binary PDF Generated"]:::botAction
+    Step4B["4. Bot Opens Hidden Browser"]:::botAction
+    Step5B["5. Bot Triggers 'Print All'"]:::botAction
+    Step6B["6. Widget Assassin Cleans Page"]:::botAction
+    Step7B["7. Binary PDF Generated"]:::botAction
 
     %% Final Save
-    8["8️⃣ Save to Excel & Disk"]:::dataSave
+    Step8["8️⃣ Save to Excel & Disk"]:::dataSave
 
     %% Connections
-    1 --> 2
-    2 --> 3A
-    2 --> 3B
+    Step1 --> Step2
+    Step2 --> Step3A
+    Step2 --> Step3B
     
-    3A --> 4A
-    4A --> 5A
-    5A --> 8
+    Step3A --> Step4A
+    Step4A --> Step5A
+    Step5A --> Step8
     
-    3B --> 4B
-    4B --> 5B
-    5B --> 6B
-    6B --> 7B
-    7B --> 8
+    Step3B --> Step4B
+    Step4B --> Step5B
+    Step5B --> Step6B
+    Step6B --> Step7B
+    Step7B --> Step8
 
+```
+
+### The Workflow Explained
+
+Here is exactly what happens under the hood during each step of the process:
+
+* **Step 1: Load Excel Data:** When you launch the Streamlit app, it automatically reads your `sources.xlsx` file. It cleans up the "File Title" column to remove illegal characters and `.pdf` extensions, preparing them for download.
+* **Step 2: User Selects Guides:** The UI displays an interactive table. You use the checkboxes to select which documents you want to process and can optionally rename the output files directly in the grid.
+* **Step 3: Trigger Automations:** You click either the **Fetch Dates** or **Download PDFs** button.
+
+**If you clicked "Fetch Dates":**
+
+* **Step 4 (Dates):** The Playwright bot launches an invisible Google Chrome browser in the background and navigates to the extracted URL.
+* **Step 5 (Dates):** Because enterprise sites hide dates, the bot executes a custom JavaScript function to crawl through the invisible "Shadow DOM" components, extracting the raw text and using a Regex pattern to find the exact publication date.
+
+**If you clicked "Download PDFs":**
+
+* **Step 4 (PDFs):** The bot launches the invisible browser, navigates to the URL, and waits for the network to fully load.
+* **Step 5 (PDFs):** The bot clicks the on-screen "Print Map" icon, force-checks the "Select All" box, and waits up to 5 minutes for the massive document to compile in a "Ghost Tab".
+* **Step 6 (PDFs):** The **Widget Assassin** activates. It injects CSS into the page to permanently hide floating chatboxes, "Scroll to Top" arrows, and feedback icons so they don't block the text on your PDF.
+* **Step 7 (PDFs):** The clean page is converted into an A4-sized PDF document.
+
+**The Final Step:**
+
+* **Step 8: Save to Excel & Disk:** For dates, the `Version` column in Excel is updated. For PDFs, the file is saved to your hard drive and the `Status` column in Excel is updated to "✅ Downloaded". The UI terminal logs "SUCCESS" and refreshes the table.
+
+```
+
+```
 ---
 
 ## 3. Prerequisites & Setup
