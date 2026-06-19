@@ -40,11 +40,8 @@ def add_log(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
     formatted_msg = f"[{timestamp}] {message}"
     
-    # 1. Update Streamlit Session State
     st.session_state.logs.append(formatted_msg)
     st.session_state.logs = st.session_state.logs[-100:]
-    
-    # 2. Print to Terminal (Standard Output)
     print(formatted_msg)
 
 def load_excel_data():
@@ -194,7 +191,15 @@ if not df.empty:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context()
-                context.on("page", lambda new_page: new_page.add_init_script("window.print = () => {}; window.close = () => {};"))
+                
+                # --- NEW FIX: GLOBAL PRINT INTERCEPTOR ---
+                # This injects a spy into every page. It tracks when the website naturally calls window.print()
+                context.add_init_script("""
+                    window.__PRINT_READY__ = false;
+                    window.print = () => { window.__PRINT_READY__ = true; };
+                    window.close = () => {};
+                """)
+                
                 page = context.new_page()
                 
                 for row in items:
@@ -219,25 +224,34 @@ if not df.empty:
                         page.evaluate("() => { function w(n){ if(n.shadowRoot)w(n.shadowRoot); if(n.tagName==='FT-CHECKBOX'){let i=n.shadowRoot?n.shadowRoot.querySelector('input'):null; if(i&&!i.checked)i.click();} for(let c of n.childNodes)w(c); } w(document.body); }")
                         time.sleep(5)
                         
-                        # STEP 3: Confirm & Catch Tab (Increased to 15 Minutes)
+                        # STEP 3: Confirm & Catch Tab
                         target_page = page
                         try:
                             add_log("Step 3: Triggering PDF compilation...")
-                            with context.expect_page(timeout=900000) as new_page_info:
+                            # 60 seconds just to let the ghost tab physically open
+                            with context.expect_page(timeout=60000) as new_page_info:
                                 page.evaluate("() => { let btns=[]; function w(n){ if(n.shadowRoot)w(n.shadowRoot); if(n.tagName==='FT-BUTTON'||n.tagName==='BUTTON'){let t=n.textContent.trim().toLowerCase(); if(t==='print'||t==='print topics')btns.push(n);} for(let c of n.childNodes)w(c); } w(document.body); let t=btns[btns.length-1]; if(t){let b=t.shadowRoot?t.shadowRoot.querySelector('button'):null; if(b)b.click(); else t.click();} }")
                             
                             target_page = new_page_info.value
-                            add_log("CRITICAL: Compiling massive document (Waiting up to 15 mins)...")
+                            add_log("CRITICAL: Waiting for site's internal Print Signal (Can take 15+ mins)...")
                             log_container.code('\n'.join(st.session_state.logs), language='bash')
                             
-                            # Wait up to 15 mins for the network to stop churning
-                            target_page.wait_for_load_state("networkidle", timeout=900000)
-                            add_log("Compilation phase 1 complete (Network idle reached).")
-                            time.sleep(15) 
+                            # --- NEW FIX: DYNAMIC WAIT ---
+                            # Playwright literally freezes here until the website sets __PRINT_READY__ to true
+                            target_page.wait_for_function("window.__PRINT_READY__ === true", timeout=900000)
+                            
+                            add_log("Compilation phase 1 complete (Print Signal Caught!).")
+                            time.sleep(10) 
                             add_log("Compilation phase 2 complete (Stability buffer finished).")
                         except Exception as e:
-                            add_log(f"Fallback mode triggered: Ghost tab not detected ({str(e)[:30]})")
-                            time.sleep(20)
+                            add_log(f"Ghost tab fallback triggered ({str(e)[:30]})...")
+                            try:
+                                # Just in case it compiled directly in the main tab
+                                target_page.wait_for_function("window.__PRINT_READY__ === true", timeout=120000)
+                                add_log("Print Signal caught in main tab!")
+                            except:
+                                pass
+                            time.sleep(10)
 
                         # SAFE WIDGET ASSASSIN
                         add_log("Cleaning PDF: Removing floating widgets...")
@@ -268,10 +282,10 @@ if not df.empty:
                         clean_fn = f"{row['Download Filename ✏️'].split('.pdf')[0]}.pdf"
                         target_page.pdf(path=clean_fn, format="A4", print_background=True, margin={"top": "0.5in", "right": "0.5in", "bottom": "0.5in", "left": "0.5in"})
                         
-                        # --- THE QA CHECK: Verify File Size ---
+                        # --- THE QA CHECK ---
                         if os.path.exists(clean_fn):
                             file_size_kb = os.path.getsize(clean_fn) / 1024
-                            if file_size_kb < 10:  # If less than 10 KB, it's a blank skeleton page
+                            if file_size_kb < 10:  
                                 error_msg = "Empty PDF (Timeout/Blank)"
                                 update_excel_cell(row['Excel Row Index'], "Status", f"❌ Failed: {error_msg}")
                                 add_log(f"❌ ERROR: File is only {file_size_kb:.1f} KB. Marked as Failed.")
@@ -286,7 +300,6 @@ if not df.empty:
                         print("--------------------------------------------------")
                     
                     except Exception as e:
-                        # Catch general crashes and write to Excel
                         short_error = str(e).splitlines()[0][:35]
                         update_excel_cell(row['Excel Row Index'], "Status", f"❌ Failed: {short_error}")
                         add_log(f"❌ ERROR (PDF): {str(e)[:80]}")
