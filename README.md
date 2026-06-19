@@ -60,6 +60,8 @@ When you launch the app, you will see the following controls:
 * **Download Filename ✏️:** Double-click any cell in this column to rename the file. The tool will automatically save the PDF using whatever name you type here.
 * **💻 Live Execution Logs:** A real-time terminal window inside the app. It tells you exactly what the bot is doing at any given second, preventing you from guessing if the app has frozen.
 
+<img width="1394" height="743" alt="image" src="https://github.com/user-attachments/assets/954559ae-5a2c-4ada-bdc2-6eb782ad1e6d" />
+
 ---
 
 
