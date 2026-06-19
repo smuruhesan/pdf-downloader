@@ -85,6 +85,7 @@ Here is exactly what happens under the hood during each step of the process:
 * **Step 8: Save to Excel & Disk:** For dates, the `Version` column in Excel is updated. For PDFs, the file is saved to your hard drive and the `Status` column in Excel is updated to "✅ Downloaded". The UI terminal logs "SUCCESS" and refreshes the table.
 
 ```
+```
 ---
 
 ## 3. Prerequisites & Setup
