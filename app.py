@@ -219,19 +219,19 @@ if not df.empty:
                         page.evaluate("() => { function w(n){ if(n.shadowRoot)w(n.shadowRoot); if(n.tagName==='FT-CHECKBOX'){let i=n.shadowRoot?n.shadowRoot.querySelector('input'):null; if(i&&!i.checked)i.click();} for(let c of n.childNodes)w(c); } w(document.body); }")
                         time.sleep(5)
                         
-                        # STEP 3: Confirm & Catch Tab
+                        # STEP 3: Confirm & Catch Tab (Increased to 15 Minutes)
                         target_page = page
                         try:
                             add_log("Step 3: Triggering PDF compilation...")
-                            with context.expect_page(timeout=300000) as new_page_info:
+                            with context.expect_page(timeout=900000) as new_page_info:
                                 page.evaluate("() => { let btns=[]; function w(n){ if(n.shadowRoot)w(n.shadowRoot); if(n.tagName==='FT-BUTTON'||n.tagName==='BUTTON'){let t=n.textContent.trim().toLowerCase(); if(t==='print'||t==='print topics')btns.push(n);} for(let c of n.childNodes)w(c); } w(document.body); let t=btns[btns.length-1]; if(t){let b=t.shadowRoot?t.shadowRoot.querySelector('button'):null; if(b)b.click(); else t.click();} }")
                             
                             target_page = new_page_info.value
-                            add_log("CRITICAL: Compiling massive document. Browser is organizational background now (Waiting up to 5 mins)...")
+                            add_log("CRITICAL: Compiling massive document (Waiting up to 15 mins)...")
                             log_container.code('\n'.join(st.session_state.logs), language='bash')
                             
-                            # HEARTBEAT LOGS
-                            target_page.wait_for_load_state("networkidle", timeout=300000)
+                            # Wait up to 15 mins for the network to stop churning
+                            target_page.wait_for_load_state("networkidle", timeout=900000)
                             add_log("Compilation phase 1 complete (Network idle reached).")
                             time.sleep(15) 
                             add_log("Compilation phase 2 complete (Stability buffer finished).")
@@ -268,13 +268,30 @@ if not df.empty:
                         clean_fn = f"{row['Download Filename ✏️'].split('.pdf')[0]}.pdf"
                         target_page.pdf(path=clean_fn, format="A4", print_background=True, margin={"top": "0.5in", "right": "0.5in", "bottom": "0.5in", "left": "0.5in"})
                         
-                        update_excel_cell(row['Excel Row Index'], "Status", "✅ Downloaded")
-                        add_log(f"💎 SUCCESS: '{clean_fn}' saved successfully.")
+                        # --- THE QA CHECK: Verify File Size ---
+                        if os.path.exists(clean_fn):
+                            file_size_kb = os.path.getsize(clean_fn) / 1024
+                            if file_size_kb < 10:  # If less than 10 KB, it's a blank skeleton page
+                                error_msg = "Empty PDF (Timeout/Blank)"
+                                update_excel_cell(row['Excel Row Index'], "Status", f"❌ Failed: {error_msg}")
+                                add_log(f"❌ ERROR: File is only {file_size_kb:.1f} KB. Marked as Failed.")
+                            else:
+                                update_excel_cell(row['Excel Row Index'], "Status", "✅ Downloaded")
+                                add_log(f"💎 SUCCESS: '{clean_fn}' saved successfully ({file_size_kb / 1024:.1f} MB).")
+                        else:
+                            update_excel_cell(row['Excel Row Index'], "Status", "❌ Failed: File not created")
+                            add_log(f"❌ ERROR: PDF was not generated on disk.")
+                            
                         log_container.code('\n'.join(st.session_state.logs), language='bash')
                         print("--------------------------------------------------")
+                    
                     except Exception as e:
+                        # Catch general crashes and write to Excel
+                        short_error = str(e).splitlines()[0][:35]
+                        update_excel_cell(row['Excel Row Index'], "Status", f"❌ Failed: {short_error}")
                         add_log(f"❌ ERROR (PDF): {str(e)[:80]}")
                         log_container.code('\n'.join(st.session_state.logs), language='bash')
+                        
                 browser.close()
             add_log("=== HEAVYWEIGHT DOWNLOAD JOB COMPLETE ===")
             st.rerun()
