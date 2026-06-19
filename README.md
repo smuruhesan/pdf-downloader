@@ -139,7 +139,7 @@ Here is exactly what happens under the hood during each step of the process:
 * **Step 4 (PDFs):** The bot launches the invisible browser, navigates to the URL, and waits for the network to fully load.
 <img width="1030" height="683" alt="image" src="https://github.com/user-attachments/assets/fbfbb053-7799-4b45-8d4b-2166baac6565" />
 
-* **Step 5 (PDFs):** The bot clicks the on-screen "Print Map" icon, force-checks the "Select All" box, and waits up to 5 minutes for the massive document to compile in a "Ghost Tab".
+* **Step 5 (PDFs):** The bot clicks the on-screen "Print Map" icon, force-checks the "Select All" box, and waits up to 15 minutes for the massive document to compile in a "Ghost Tab". (Some docs like XSIAM documentation is sometime >100 Mb and need more time to load)
 * **Step 6 (PDFs):** The **Widget Assassin** activates. It injects CSS into the page to permanently hide floating chatboxes, "Scroll to Top" arrows, and feedback icons so they don't block the text on your PDF.
 * **Step 7 (PDFs):** The clean page is converted into an A4-sized PDF document.
 
