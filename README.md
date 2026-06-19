@@ -4,7 +4,7 @@
 
 ## 1. Overview
 
-The **Cortex Admin Guide Manager** is an advanced, automated web-scraping and document-generation tool built with Python, Streamlit, and Playwright.
+The **Cortex Docs PDF Downloader** is an automated web-scraping and document-generation tool built with Python, Streamlit, and Playwright.
 
 It is specifically designed to interact with the Palo Alto Networks documentation portal (which uses the Fluid-Topics framework). The tool allows users to manage a list of documentation URLs via an Excel file, automatically extract hidden publication dates, and compile multi-page HTML manuals into clean, heavyweight PDF files without floating web widgets obstructing the text.
 
